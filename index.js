@@ -12,9 +12,9 @@ module.exports = (channel, ari) => {
         } = props;
 
         //promise keeps the loop running until we finish it. 
-        const value = await new Promise(async (resolve, reject) => {
+        return await new Promise(async (resolve, reject) => {
             //validate soundFiles
-            if(!Array.isArray(soundFiles)|| soundFiles.length<1){
+            if (!Array.isArray(soundFiles) || soundFiles.length < 1) {
                 reject('Must call with atleast one soundFiles');
             }
             //TODO validate further variables
@@ -28,7 +28,7 @@ module.exports = (channel, ari) => {
                 timeout: false, //idle timeout
                 playbackFinishedListener: false, //the function that runs when playback is done
             };
-            
+
 
             const endCall = (rejectReason) => {
                 readIsFinished();
@@ -53,7 +53,8 @@ module.exports = (channel, ari) => {
                 };
                 setPlayFinishListener(attemptLimitFinished);
 
-                channel.play({ media: 'sound:goodbye' }, state.playback, function (err) { });
+                channel.play({media: 'sound:goodbye'}, state.playback, function (err) {
+                });
             };
 
             /******************************
@@ -65,13 +66,14 @@ module.exports = (channel, ari) => {
                 state.timeout = setTimeout(
                     () => {
                         if (state.isFinished) return;
-                        debug && console.log('Channel %s stopped paying attention...', text);
+                        debug && console.log('Channel %s stopped paying attention...', channel.id);
                         const timeoutReadLimit = () => {
                             //removeFinishListener();
                             endCall('timeout limit');
                         };
                         setPlayFinishListener(timeoutReadLimit);
-                        channel.play({ media: 'sound:goodbye' }, state.playback, function (err) { });
+                        channel.play({media: 'sound:goodbye'}, state.playback, function (err) {
+                        });
 
 
                     }, (timeout || 10) * 1000
@@ -83,8 +85,9 @@ module.exports = (channel, ari) => {
             };
 
             //if hangup happens during the read function.
+            // noinspection JSDeprecatedSymbols
             const handleHangupDuringRead = (event, incoming) => {
-                //if this has already 
+                //if this has already
                 if (!state.isFinished) {
                     state.isPlaying = false;
                     ari.removeListener('PlaybackFinished', runPlayFinishListener);
@@ -93,7 +96,7 @@ module.exports = (channel, ari) => {
             };
             channel.on('StasisEnd', handleHangupDuringRead);
 
-            //each time a file playback completes it needs to call this function to do the next actin.
+            //each time a file playback completes it needs to call this function to do the next action.
             const setPlayFinishListener = (listener) => {
                 state.playbackFinishedListener = listener;
             };
@@ -112,7 +115,7 @@ module.exports = (channel, ari) => {
                 //stop the playback from looping
                 state.dontPlayNextFile = true;
                 if (state.playback && state.isPlaying) {
-                    state.playback.stop({ playbackId: state.playback.id }, function (err) {
+                    state.playback.stop({playbackId: state.playback.id}, function (err) {
                         //ignore the error
                         state.isPlaying = false;
                     });
@@ -120,15 +123,15 @@ module.exports = (channel, ari) => {
             };
 
             /**************************************************
-             * PLAY FILES FROM BEGINNING TO END             
+             * PLAY FILES FROM BEGINNING TO END
              *************************************************/
             const playNextFile = () => {
                 if (state.dontPlayNextFile) return;
 
                 //get filename, remove the extension as asterisk doesnt need that.
                 const filename_no_ext = soundFiles[state.soundFileIndex] && soundFiles[state.soundFileIndex].split('.').length > 1 ?
-                soundFiles[state.soundFileIndex].split('.').slice(0, -1).join('.') : 
-                soundFiles[state.soundFileIndex];
+                    soundFiles[state.soundFileIndex].split('.').slice(0, -1).join('.') :
+                    soundFiles[state.soundFileIndex];
                 state.soundFileIndex++;
 
                 const playComplete = async () => {
@@ -136,10 +139,9 @@ module.exports = (channel, ari) => {
                         state.isPlaying = false;
                         //LAST FILE
                         if (state.soundFileIndex >= soundFiles.length) {
-                            if (digitsInResponse == 0) {
+                            if (digitsInResponse === 0) {
                                 done();
-                            }
-                            else {
+                            } else {
                                 state.dontPlayNextFile = true;
                                 waitForInactivity();
                             }
@@ -152,15 +154,16 @@ module.exports = (channel, ari) => {
                     }
                 };
                 setPlayFinishListener(playComplete);
-                channel.play({ media: `sound:${filename_no_ext}` }, state.playback, function (err) {/*ignore errors*/ });
+                channel.play({media: `sound:${filename_no_ext}`}, state.playback, function (err) {/*ignore errors*/
+                });
                 state.isPlaying = true;
             };
 
             /******************************************
-             * GET A SPECIFIC NUMBER OF DIGITS          
+             * GET A SPECIFIC NUMBER OF DIGITS
              ***************************************/
             const waitForNDigits = async (numDigits) => {
-                let selection = await new Promise((resolveSelection) => {
+                return await new Promise((resolveSelection) => {
                     const digitsPressed = [];
                     const digitHandler = (event, channel) => {
 
@@ -168,14 +171,14 @@ module.exports = (channel, ari) => {
                         if (event.digit === '#') {
                             readIsFinished();
                             channel.removeListener('ChannelDtmfReceived', digitHandler);
-                            return resolveSelection('#');
+                            return resolveSelection(digitsPressed.join(''));
                         }
 
                         //ADD TO LIST OF DIGIS
                         digitsPressed.push(event.digit);
                         waitForInactivity();
 
-                        //IF WE HAVE ENOUGH DIGITS 
+                        //IF WE HAVE ENOUGH DIGITS
                         if (digitsPressed.length >= numDigits) {
                             const numSelected = digitsPressed.join('');
                             readIsFinished();
@@ -185,16 +188,15 @@ module.exports = (channel, ari) => {
                     };
                     channel.on('ChannelDtmfReceived', digitHandler);
                 });
-                return selection;
             };
 
             /*****************************************************************************
-             * GET A SPECIFIC NUMBER OF VALID DIGITS BY THE ATTEMPT LIMIT  
+             * GET A SPECIFIC NUMBER OF VALID DIGITS BY THE ATTEMPT LIMIT
              ******************************************************************************/
             const getDigitsToRespond = async (attempts, digitsInResponse) => {
                 let attemptCount = 0;
                 let digitsToReturn = false;
-                let ret = await new Promise(async (resolveSelection, rejectSelection) => {
+                return await new Promise(async (resolveSelection, rejectSelection) => {
                     while (attemptCount <= attempts && digitsToReturn === false) {
                         //start playing files
                         playNextFile();
@@ -225,7 +227,7 @@ module.exports = (channel, ari) => {
                         state.isFinished = false;
 
                         //the first thing to read is "this option is invalid"
-                        if (soundFiles[0] != 'option-is-invalid') {
+                        if (soundFiles[0] !== 'option-is-invalid') {
                             soundFiles.unshift('option-is-invalid');
                         }
 
@@ -233,28 +235,22 @@ module.exports = (channel, ari) => {
                     }
                     return resolveSelection(false);
                 });
-                return ret;
             };
 
 
             /**************************
-             * ACTUAL READ       
+             * ACTUAL READ
              **************************/
             if (digitsInResponse > 0) {
                 let digitsToReturn = await getDigitsToRespond(attempts, digitsInResponse);
                 if (digitsToReturn === false) {
                     await hangupForTooManyAttempts();
-                }
-                else {
+                } else {
                     done(digitsToReturn);
                 }
-            }
-            else {
+            } else {
                 playNextFile();
             }
         });
-
-        //now once the promise resolves we return it.
-        return value;
     };
 };
